@@ -43,7 +43,7 @@ export function EventCalendar() {
 
     return (
         <>
-            <div className="rounded-xl border bg-background p-4">
+            <div className="flex h-full flex-1 flex-col rounded-xl border bg-background p-4">
                 <FullCalendar
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                     initialView="dayGridMonth"
@@ -62,7 +62,7 @@ export function EventCalendar() {
                         extendedProps: e,
                     }))}
                     eventClick={handleEventClick}
-                    height="auto"
+                    height="100%"
                 />
             </div>
 
