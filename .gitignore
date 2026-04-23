@@ -17,6 +17,10 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
 /vendor
 auth.json
 Homestead.json
