@@ -1,0 +1,118 @@
+services:
+    laravel.test:
+        build:
+            context: './vendor/laravel/sail/runtimes/8.3'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP:-1000}'
+        image: 'sail-8.3/app'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '${APP_PORT:-80}:80'
+            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+        environment:
+            WWWUSER: '${WWWUSER:-1000}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            - pgsql
+            - redis
+            - minio
+            - mailpit
+
+    pgsql:
+        image: 'postgres:16-alpine'
+        ports:
+            - '${FORWARD_DB_PORT:-5432}:5432'
+        environment:
+            PGPASSWORD: '${DB_PASSWORD:-password}'
+            POSTGRES_DB: '${DB_DATABASE:-pat_v2}'
+            POSTGRES_USER: '${DB_USERNAME:-sail}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD:-password}'
+        volumes:
+            - 'sail-pgsql:/var/lib/postgresql/data'
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - pg_isready
+                - '-q'
+                - '-d'
+                - '${DB_DATABASE:-pat_v2}'
+                - '-U'
+                - '${DB_USERNAME:-sail}'
+            retries: 3
+            timeout: 5s
+
+    redis:
+        image: 'redis:7-alpine'
+        ports:
+            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        volumes:
+            - 'sail-redis:/data'
+        networks:
+            - sail
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            retries: 3
+            timeout: 5s
+
+    minio:
+        image: 'minio/minio:latest'
+        ports:
+            - '${FORWARD_MINIO_PORT:-9000}:9000'
+            - '${FORWARD_MINIO_CONSOLE_PORT:-8900}:8900'
+        environment:
+            MINIO_ROOT_USER: '${AWS_ACCESS_KEY_ID:-sail}'
+            MINIO_ROOT_PASSWORD: '${AWS_SECRET_ACCESS_KEY:-password}'
+        volumes:
+            - 'sail-minio:/data/minio'
+        networks:
+            - sail
+        command: 'minio server /data/minio --console-address ":8900"'
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+            retries: 3
+            timeout: 5s
+
+    createbuckets:
+        image: minio/mc
+        depends_on:
+            - minio
+        networks:
+            - sail
+        entrypoint: >
+            /bin/sh -c "
+            until (/usr/bin/mc alias set sail http://minio:9000 ${AWS_ACCESS_KEY_ID:-sail} ${AWS_SECRET_ACCESS_KEY:-password}) do echo '...waiting for minio...' && sleep 1; done;
+            /usr/bin/mc mb -p sail/${AWS_BUCKET:-pat-v2};
+            /usr/bin/mc anonymous set download sail/${AWS_BUCKET:-pat-v2};
+            exit 0;
+            "
+
+    mailpit:
+        image: 'axllent/mailpit:latest'
+        ports:
+            - '${FORWARD_MAILPIT_PORT:-1025}:1025'
+            - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
+        networks:
+            - sail
+
+networks:
+    sail:
+        driver: bridge
+
+volumes:
+    sail-pgsql:
+        driver: local
+    sail-redis:
+        driver: local
+    sail-minio:
+        driver: local

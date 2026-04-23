@@ -1,17 +1,58 @@
-# PatScheduleManagement
-# Login
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/08ab20af-2f78-427a-a857-9344d4db22fa)
-# Admin POV
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/03d69d38-621b-4c2e-a573-04e4db241d7d)
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/6e779733-7b77-4419-82fa-0998bdee251a)
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/1715dfd9-52b3-483f-9700-7b9e928d8c0d)
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/0dabc96c-65c0-4404-adbc-a9bd73c7c5dd)
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/a1fcb63c-8845-4f40-8c59-cbca4650cf15)
-# Department Office POV
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/a1ce620a-e4a2-40d0-a10e-054b22a0ccd9)
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/ff5ec2d6-21a8-43a7-873e-ea16e0bbb7dc)
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/c064b21e-e04c-4489-a7f6-a549cd64238a)
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/e85df72e-cf06-4606-a2cf-57351fd4aca5)
-# Student POV
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/dd850e45-6974-49dc-895f-36e132efc624)
-![image](https://github.com/FrostJan/PatScheduleManagement/assets/65491786/285eecf4-e037-4d5d-98a8-7d685a9fd342)
+# PAT Schedule Management (v2)
+
+Rebuild of the legacy PHP/MariaDB PAT Schedule Management system on Laravel 12, PostgreSQL, Docker and a React + shadcn/ui frontend.
+
+## Stack
+
+- **Backend** — Laravel 12 (PHP 8.3), Eloquent, Pest. Based on the [official Laravel React starter kit](https://github.com/laravel/react-starter-kit).
+- **Frontend** — Inertia v2 + React 19 + TypeScript, Tailwind 4, shadcn/ui, FullCalendar React, Recharts, TanStack Table, React Hook Form + Zod.
+- **Database** — PostgreSQL 16.
+- **Auth / RBAC** — Laravel session auth + `spatie/laravel-permission` with three roles (`admin`, `department_office`, `student`).
+- **File storage** — S3-compatible (MinIO locally) via `league/flysystem-aws-s3-v3`. Signed URLs only.
+- **Dev env** — Laravel Sail (Postgres, Redis, MinIO, Mailpit).
+- **Prod** — `docker/Dockerfile` + `docker/nginx.conf` + `compose.prod.yml`.
+
+## Quick start
+
+```bash
+cp .env.example .env
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan migrate:fresh --seed
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run dev
+```
+
+Open http://localhost. Seeded accounts (password is `password`):
+
+| Role | Email |
+| --- | --- |
+| Admin | admin@pat-v2.local |
+| Department Office | department@pat-v2.local |
+| Student | student@pat-v2.local |
+
+## Feature map
+
+| Route | Role | What it does |
+| --- | --- | --- |
+| `/dashboard` | all | Role-scoped calendar (FullCalendar React). |
+| `/requests/create` | student, department | Submit facility request with attachment. |
+| `/requests` | student (own), admin/department (all) | Request status table. |
+| `/requests/{id}` | owner + staff | Request detail with signed attachment URL. |
+| `/approvals` | department, admin | Approve / decline pending requests. |
+| `/document-history` | department, admin | Archive of approved requests. |
+| `/summary` | department, admin | Approved/declined/monthly charts (Recharts). |
+| `/activity-purposes` | admin | CRUD the activity dictionary. |
+| `/log` | admin | Audit log. |
+
+## Testing
+
+```bash
+./vendor/bin/pest                 # 37 passing
+./vendor/bin/pint --test          # PHP formatting
+npm run build                     # TypeScript/React compile
+```
+
+## Notes
+
+- Approval is single-step today (`pending → approved | declined`). The paper form mentions multi-signature (Dept Head → AV Head → Exec Director) — see `scripts/plans/system-reminder-you-re-running-in-temporal-cerf.md` for how to extend.
+- Legacy PHP source is removed; the original schema dump is preserved in the `1459b7f` commit if ever needed.

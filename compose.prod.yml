@@ -1,0 +1,59 @@
+services:
+    app:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+        image: pat-v2/app:latest
+        restart: unless-stopped
+        env_file:
+            - .env.production
+        volumes:
+            - app-storage:/var/www/html/storage
+        depends_on:
+            - redis
+        networks:
+            - pat
+
+    web:
+        image: nginx:alpine
+        restart: unless-stopped
+        ports:
+            - '80:80'
+        volumes:
+            - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+            - app-storage:/var/www/html/storage:ro
+        depends_on:
+            - app
+        networks:
+            - pat
+
+    queue:
+        image: pat-v2/app:latest
+        restart: unless-stopped
+        command: php artisan queue:work --sleep=1 --tries=3
+        env_file:
+            - .env.production
+        volumes:
+            - app-storage:/var/www/html/storage
+        depends_on:
+            - redis
+        networks:
+            - pat
+
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+        volumes:
+            - redis-data:/data
+        networks:
+            - pat
+
+networks:
+    pat:
+        driver: bridge
+
+volumes:
+    app-storage:
+        driver: local
+    redis-data:
+        driver: local
